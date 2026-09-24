@@ -57,6 +57,15 @@
     .bars .b-down { background: var(--down); }
     .meta { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 0.8rem; }
     footer { color: #6b7280; font-size: 0.875rem; text-align: center; padding: 16px 0; }
+    @media (max-width: 600px) {
+      header { padding-top: 32px; }
+      .logo svg { height: 32px; }
+      h1 { font-size: 1.5rem; white-space: nowrap; }
+      /* Only display the last 50 days. */
+      .bars span:nth-last-child(n+51), .days-all { display: none; }
+    }
+    .days-50 { display: none; }
+    @media (max-width: 600px) { .days-50 { display: inline; } }
   </style>
 </head>
 <body>
@@ -98,7 +107,7 @@
       {% endfor %}
     </div>
     <div class="meta">
-      <span>{{ s.days | length }} days ago</span>
+      <span><span class="days-all">{{ s.days | length }} days ago</span><span class="days-50">50 days ago</span></span>
       <span>
         {% if s.uptime is not none %}{{ '%.2f' % (s.uptime * 100) }}% uptime{% endif %}
       </span>

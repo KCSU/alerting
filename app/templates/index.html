@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="60">
+  <title>Service Status | King’s College SU</title>
+  <meta name="description" content="Live status of King’s College Student Union services.">
+  <meta name="theme-color" content="#59276c">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='icons/favicon-32x32.png') }}">
+  <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icons/favicon-192x192.png') }}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='icons/apple-icon-180x180.png') }}">
+  <style>
+    @font-face {
+      font-family: 'Proxima Nova'; font-weight: 400; font-display: swap;
+      src: url('{{ url_for('static', filename='fonts/Proxima-Nova-Regular.woff2') }}') format('woff2');
+    }
+    @font-face {
+      font-family: 'Proxima Nova'; font-weight: 500; font-display: swap;
+      src: url('{{ url_for('static', filename='fonts/Proxima-Nova-Semibold.woff2') }}') format('woff2');
+    }
+    @font-face {
+      font-family: 'Proxima Nova'; font-weight: 700; font-display: swap;
+      src: url('{{ url_for('static', filename='fonts/Proxima-Nova-Bold.woff2') }}') format('woff2');
+    }
+    /* Brand colours from kcsu.org.uk */
+    :root {
+      --logo: #59276c;
+      --bg: #fff; --fg: #1a1a1a; --muted: #6b6b6b; --card: #f6f6f6;
+      --up: #2e9e5b; --partial: #d9a100; --down: #d0343a; --none: #d4d4d4;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #111; --fg: #eee; --muted: #999; --card: #1c1c1c; --none: #3a3a3a; --logo: #fff; }
+    }
+    body { margin: 0; min-height: 100vh; display: flex; flex-direction: column;
+           background: var(--bg); color: var(--fg);
+           font: 16px/1.5 'Proxima Nova', system-ui, sans-serif; }
+    .wrap { width: 100%; max-width: 760px; margin: 0 auto; padding-inline: 16px; box-sizing: border-box; }
+    header { padding-top: 96px; display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+    .logo { display: inline-block; color: var(--logo); }
+    .logo svg { height: 48px; width: auto; display: block; }
+    main { flex: 1; padding-top: 20px; padding-bottom: 32px; }
+    hr { border: 0; border-top: 1px solid var(--fg); margin: 0 0 24px; }
+    h1 { font-size: 2rem; line-height: 1; font-weight: 700; margin: 0; }
+    .banner { padding: 12px 16px; border-radius: 8px; color: #fff; font-weight: 400; font-size: 20px; }
+    .banner small { display: block; font-size: 0.8rem; opacity: 0.85; }
+    .service { background: var(--card); border-radius: 8px; padding: 16px; margin-top: 16px; }
+    .head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .head a { color: inherit; font-weight: 700; text-decoration: none; }
+    .head a:hover { text-decoration: underline; }
+    .up { color: var(--up); } .down { color: var(--down); }
+    .bars { display: flex; gap: 2px; height: 32px; margin: 12px 0 4px; }
+    .bars span { flex: 1; border-radius: 2px; background: var(--none); }
+    .bars .b-up { background: var(--up); }
+    .bars .b-partial { background: var(--partial); }
+    .bars .b-down { background: var(--down); }
+    .meta { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 0.8rem; }
+    footer { color: #6b7280; font-size: 0.875rem; text-align: center; padding: 16px 0; }
+  </style>
+</head>
+<body>
+<header class="wrap">
+  <a class="logo" href="https://www.kcsu.org.uk/">{% include 'logo.svg' %}</a>
+  <h1>Service Status</h1>
+</header>
+
+<main class="wrap">
+  <hr>
+  <div class="banner" style="background: var(--{{ 'up' if all_ok else 'down' }})">
+    {{ 'All systems operational' if all_ok else 'Some systems are down' }}
+    {% if updated %}
+      <small>Last updated: {{ updated.day }} {{ updated.strftime('%b %Y, %H:%M %Z') }}
+        {%- if updated.utcoffset() %} (GMT+{{ (updated.utcoffset().total_seconds() // 3600) | int }}){% endif %}</small>
+    {% endif %}
+  </div>
+
+  {% for s in services %}
+  <section class="service">
+    <div class="head">
+      <a href="{{ s.url }}">{{ s.name }}</a>
+      {% if s.latest %}
+        <span class="{{ 'up' if s.ok else 'down' }}">
+          {{ 'Operational' if s.ok else 'Down (' ~ s.latest.error ~ ')' }}
+        </span>
+      {% else %}
+        <span>No data</span>
+      {% endif %}
+    </div>
+    <div class="bars">
+      {% for day, ratio in s.days %}
+        {% if ratio is none %}
+          <span title="{{ day }}: no data"></span>
+        {% else %}
+          <span class="{{ 'b-up' if ratio == 1 else 'b-partial' if ratio >= 0.9 else 'b-down' }}"
+                title="{{ day }}: {{ '%.1f' % (ratio * 100) }}% up"></span>
+        {% endif %}
+      {% endfor %}
+    </div>
+    <div class="meta">
+      <span>{{ s.days | length }} days ago</span>
+      <span>
+        {% if s.uptime is not none %}{{ '%.2f' % (s.uptime * 100) }}% uptime{% endif %}
+      </span>
+      <span>Today</span>
+    </div>
+  </section>
+  {% endfor %}
+</main>
+
+<footer>
+  <div class="wrap">
+    &copy; {{ year }} King’s College Student Union. All rights reserved.
+  </div>
+</footer>
+</body>
+</html>

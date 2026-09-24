@@ -1,0 +1,51 @@
+[project]
+name = "alerting"
+version = "0.1.0"
+description = "KCSU service status page"
+requires-python = ">=3.14"
+dependencies = [
+    "Flask==3.0.3",
+    "gunicorn==22.0.0",
+    "PyMySQL==1.1.1",
+    "python-dotenv==1.0.1",
+    "SQLAlchemy==2.0.44",
+    "requests==2.32.4",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.6.2",
+    "pytest==8.2.0",
+    "ruff>=0.16.8",
+    "ty>=0.0.1a14",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "ANN", "Q"]
+ignore = ["ANN401"]
+
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = "single"
+docstring-quotes = "double"
+multiline-quotes = "double"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["ANN"]
+
+[tool.ruff.format]
+quote-style = "single"
+
+[tool.ty.src]
+include = ["app"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"

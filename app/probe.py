@@ -8,9 +8,19 @@ from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import requests
-from sqlalchemy import Integer, cast, delete, func, select
+from sqlalchemy import Integer, cast, delete, func, select, update
+from sqlalchemy.orm import Session
 
-from app.config import HISTORY_DAYS, TIMEOUT_SEC
+from app import alert
+from app.config import (
+    ALERT_AFTER,
+    ALERT_INTERVAL,
+    CHECK_ATTEMPTS,
+    HISTORY_DAYS,
+    RECOVERED_AFTER,
+    RETRY_DELAY_SEC,
+    TIMEOUT_SEC,
+)
 from app.db import Check, Service, session_factory, utc_hour
 
 # Stored times are UTC. The page shows UK days.
@@ -34,7 +44,7 @@ def health_url(service: Service) -> str:
     return service.url.rstrip('/') + '/' + service.health_path.lstrip('/')
 
 
-def check(service: Service) -> Check:
+def check_once(service: Service) -> Check:
     checked_at = datetime.now(UTC)
     start = time.monotonic()
     status_code = latency_ms = None
@@ -55,6 +65,16 @@ def check(service: Service) -> Check:
     )
 
 
+def check(service: Service) -> Check:
+    result = check_once(service)
+    for _ in range(CHECK_ATTEMPTS - 1):
+        if result.ok:
+            break
+        time.sleep(RETRY_DELAY_SEC)
+        result = check_once(service)
+    return result
+
+
 def record(checks: list[Check]) -> None:
     cutoff = datetime.now(UTC) - timedelta(days=HISTORY_DAYS)
     with session_factory.begin() as session:
@@ -67,9 +87,75 @@ def load_services() -> list[Service]:
         return list(session.scalars(select(Service).order_by(Service.id)))
 
 
+def down_since(session: Session, service_id: int) -> datetime | None:
+    """First failed check after the last passing one; None if currently up."""
+    of_service = Check.service_id == service_id
+    last_ok = session.scalar(
+        select(func.max(Check.checked_at)).where(of_service, Check.error.is_(None))
+    )
+    first_failed = select(func.min(Check.checked_at)).where(of_service)
+    if last_ok:
+        first_failed = first_failed.where(Check.checked_at > last_ok)
+    return session.scalar(first_failed)
+
+
+def recovered_since(session: Session, service_id: int, t: datetime) -> bool:
+    """Whether the service stayed up for RECOVERED_AFTER at some point after t."""
+    rows = session.execute(
+        select(Check.checked_at, Check.error)
+        .where(Check.service_id == service_id, Check.checked_at > t)
+        .order_by(Check.checked_at)
+    )
+    up_from = None
+    for checked_at, error in rows:
+        if error is None:
+            up_from = up_from or checked_at
+        elif up_from:
+            if checked_at - up_from >= RECOVERED_AFTER:
+                return True
+            up_from = None
+    return False
+
+
+def alert_due(session: Session, service: Service, now: datetime) -> bool:
+    since = down_since(session, service.id)
+    if since is None or now - since < ALERT_AFTER:
+        return False
+    last = service.last_alert_at
+    return (
+        last is None
+        or now - last >= ALERT_INTERVAL
+        or recovered_since(session, service.id, last)
+    )
+
+
 def run_probes() -> None:
+    services = load_services()
     with ThreadPoolExecutor() as pool:
-        record(list(pool.map(check, load_services())))
+        checks = list(pool.map(check, services))
+    now = datetime.now(DISPLAY_TZ)
+    errors = [c.error for c in checks]
+    record(checks)
+    with session_factory() as session:
+        rows = [
+            {
+                'id': s.id,
+                'name': s.name,
+                'url': s.url,
+                'error': error,
+                'alert': alert_due(session, s, now),
+            }
+            for s, error in zip(services, errors, strict=True)
+        ]
+    alerted = [r['id'] for r in rows if r['alert']]
+    if not alerted:
+        return
+    # Send first: if it fails, nothing is marked and the next run retries.
+    alert.send(alert.message(rows, now))
+    with session_factory.begin() as session:
+        session.execute(
+            update(Service).where(Service.id.in_(alerted)).values(last_alert_at=now)
+        )
 
 
 def summary() -> list[dict]:

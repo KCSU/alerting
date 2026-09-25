@@ -1,0 +1,76 @@
+{% set font = "'Proxima Nova', Helvetica, Arial, sans-serif" -%}
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light only">
+  <title>{{ title }}</title>
+</head>
+<body style="margin:0; padding:0; background:#f7f6f2;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7f6f2;">
+<tr><td align="center" style="padding:24px 12px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+         style="max-width:600px; background:#ffffff; font-family:{{ font }}; color:#1a1a1a;">
+    <tr>
+      <td style="background:#59276c; padding:20px 24px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+          <td><a href="{{ status_url }}"><img src="cid:{{ logo_cid }}" alt="KCSU" height="28" width="79" style="display:block; border:0; width:79px; height:28px;"></a></td>
+          <td align="right" style="color:#ffffff; font-family:{{ font }}; font-size:18px; font-weight:700;">Service Status</td>
+        </tr></table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:28px 24px 8px;">
+        <h1 style="margin:0 0 4px; font-size:24px; line-height:1.25; font-weight:700;">{{ title }}</h1>
+        <p style="margin:0; color:#6b6b6b; font-size:14px;">
+          Detected {{ now.day }} {{ now.strftime('%b %Y, %H:%M %Z') }}
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:16px 24px 8px;">
+        {% for r in alerted %}
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+               style="margin-bottom:12px; background:#f7f6f2; border-left:4px solid #d0343a; border-radius:4px;">
+          <tr><td style="padding:12px 16px; font-size:15px; line-height:1.4;">
+            <a href="{{ r.url }}" style="color:#1a1a1a; font-weight:700; text-decoration:none;">{{ r.name }}</a><br>
+            <span style="color:#d0343a;">{{ r.error }}</span>
+          </td></tr>
+        </table>
+        {% endfor %}
+      </td>
+    </tr>
+    <tr>
+      <td align="center" style="padding:8px 24px 24px;">
+        <a href="{{ status_url }}" style="display:inline-block; padding:12px 24px; background:#59276c; color:#ffffff; border-radius:6px; font-size:15px; font-weight:700; text-decoration:none;">
+          View status page
+        </a>
+        <p style="margin:8px 0 0; font-size:13px;"><a href="{{ status_url }}" style="color:#59276c;">{{ status_url }}</a></p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 24px 24px;">
+        <p style="margin:0 0 8px; font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#6b6b6b;">All services</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;">
+          {% for r in rows %}
+          <tr>
+            <td style="padding:8px 0; border-top:1px solid #e6e6e6;">{{ r.name }}</td>
+            <td align="right" style="padding:8px 0; border-top:1px solid #e6e6e6; color:{{ '#d0343a' if r.error else '#2e9e5b' }};">
+              &#9679; {{ 'Down' if r.error else 'Operational' }}
+            </td>
+          </tr>
+          {% endfor %}
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 24px 24px; color:#6b6b6b; font-size:12px; line-height:1.5;">
+        Sent automatically by the KCSU status monitor.
+      </td>
+    </tr>
+  </table>
+</td></tr>
+</table>
+</body>
+</html>

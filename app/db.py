@@ -72,6 +72,8 @@ class Service(Base):
     url: Mapped[str] = mapped_column(String(255))
     # e.g.: /health, /healthz
     health_path: Mapped[str] = mapped_column(String(100))
+    # When the last down alert was sent.
+    last_alert_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
 
 class Check(Base):

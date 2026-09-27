@@ -101,7 +101,7 @@
         {% if ratio is none %}
           <span title="{{ day }}: no data"></span>
         {% else %}
-          <span class="{{ 'b-up' if ratio == 1 else 'b-partial' if ratio >= 0.9 else 'b-down' }}"
+          <span class="{{ 'b-up' if ratio >= 0.99 else 'b-partial' if ratio >= 0.9 else 'b-down' }}"
                 title="{{ day }}: {{ '%.1f' % (ratio * 100) }}% up"></span>
         {% endif %}
       {% endfor %}
